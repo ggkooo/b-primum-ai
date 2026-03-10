@@ -29,6 +29,62 @@ All project routes are protected by a security layer. The `X-API-KEY` header is 
 curl -H "X-API-KEY: your_api_key_here" http://localhost:8000/
 ```
 
+## 📡 API Endpoints
+
+### User Registration
+`POST /api/register`
+
+Used to register a new user in the platform.
+
+#### Payload:
+```json
+{
+    "name": "Giordano Bruno",
+    "email": "giordanoberwig@proton.me",
+    "password": "12345678",
+    "password_confirmation": "12345678"
+}
+```
+
+#### Success Response (201 Created):
+```json
+{
+    "status": "success",
+    "message": "User registered successfully",
+    "data": {
+        "user": {
+            "name": "Giordano Bruno",
+            "email": "giordanoberwig@proton.me",
+            "updated_at": "2026-03-10T17:08:44.000000Z",
+            "created_at": "2026-03-10T17:08:44.000000Z",
+            "id": 1
+        }
+    }
+}
+```
+
+#### Error Responses:
+
+**Validation Error (422 Unprocessable Entity):**
+```json
+{
+    "message": "The email has already been taken.",
+    "errors": {
+        "email": [
+            "The email has already been taken."
+        ]
+    }
+}
+```
+
+**Unauthorized (401 Unauthorized):**
+```json
+{
+    "message": "Unauthorized: Invalid or missing API Key"
+}
+```
+
+
 ## ⚙️ Installation and Setup
 
 1. **Clone the repository:**
