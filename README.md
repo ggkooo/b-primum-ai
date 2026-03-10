@@ -5,9 +5,51 @@ This project is part of the **Integrated Project** (PI) course at university. Th
 ## 🚀 Features
 
 - [x] API Key Authentication (`X-API-KEY`).
-- [ ] Health Dataset Integration (In development).
+- [x] Health Dataset Upload.
 - [ ] Diagnosis AI Engine (In development).
 - [ ] API Routes for Symptoms and Diagnoses (In development).
+
+### Dataset Upload
+`POST /api/datasets/upload`
+
+Used to upload a CSV dataset to the platform.
+
+#### Payload (multipart/form-data):
+- `dataset`: (file) The CSV file to upload.
+
+#### Success Response (201 Created):
+```json
+{
+    "status": "success",
+    "message": "Dataset uploaded successfully",
+    "data": {
+        "filename": "Disease_symptom_and_patient_profile_dataset.csv",
+        "path": "datasets/RV0G2GrCbPTUWQGXaPRnPqA8NrsIuKo5aCXFDuJH.csv",
+        "size": 20514
+    }
+}
+```
+
+#### Error Responses:
+
+**Missing File (422 Unprocessable Entity):**
+```json
+{
+    "message": "A dataset file is required.",
+    "errors": {
+        "dataset": [
+            "A dataset file is required."
+        ]
+    }
+}
+```
+
+**Unauthorized (401 Unauthorized):**
+```json
+{
+    "message": "Unauthorized: Invalid or missing API Key"
+}
+```
 
 ## 🛠️ Tech Stack
 
