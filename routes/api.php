@@ -8,4 +8,5 @@ Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 
 Route::post('/datasets/upload', [DatasetController::class, 'upload']);
+Route::post('/datasets/{id}/parse', [DatasetController::class, 'parse']);
 
