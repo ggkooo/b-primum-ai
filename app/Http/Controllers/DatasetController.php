@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\DatasetUploadRequest;
+use App\Jobs\ParseDatasetJob;
 use App\Models\Dataset;
 use App\Services\DatasetParserService;
 use Illuminate\Http\JsonResponse;
@@ -29,10 +30,13 @@ class DatasetController extends Controller
                 'original_filename' => $file->getClientOriginalName(),
                 'storage_path' => $path,
             ]);
+
+            // Dispatch the background parsing job
+            ParseDatasetJob::dispatch($dataset);
             
             return response()->json([
                 'status' => 'success',
-                'message' => 'Dataset uploaded successfully',
+                'message' => 'Dataset uploaded successfully. Parsing started in background.',
                 'data' => [
                     'id' => $dataset->id,
                     'filename' => $dataset->original_filename,
