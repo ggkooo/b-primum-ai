@@ -85,6 +85,57 @@ Used to register a new user in the platform.
 ```
 
 
+### User Login
+`POST /api/login`
+
+Used to authenticate a user and receive a session token.
+
+#### Payload:
+```json
+{
+    "email": "giordanoberwig@proton.me",
+    "password": "12345678"
+}
+```
+
+#### Success Response (200 OK):
+```json
+{
+    "status": "success",
+    "message": "Login successful",
+    "data": {
+        "access_token": "1|QKtUHovpsnhTV63v3inHgyr1RqwtCnhViFNTYyYI20027eed",
+        "token_type": "Bearer",
+        "user": {
+            "id": 1,
+            "name": "Giordano Bruno",
+            "email": "giordanoberwig@proton.me",
+            "email_verified_at": null,
+            "created_at": "2026-03-10T17:18:01.000000Z",
+            "updated_at": "2026-03-10T17:18:01.000000Z"
+        }
+    }
+}
+```
+
+#### Error Responses:
+
+**Invalid Credentials (401 Unauthorized):**
+```json
+{
+    "status": "error",
+    "message": "Invalid credentials"
+}
+```
+
+**Unauthorized (401 Unauthorized):**
+```json
+{
+    "message": "Unauthorized: Invalid or missing API Key"
+}
+```
+
+
 ## ⚙️ Installation and Setup
 
 1. **Clone the repository:**
