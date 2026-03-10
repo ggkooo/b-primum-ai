@@ -6,8 +6,8 @@ This project is part of the **Integrated Project** (PI) course at university. Th
 
 - [x] API Key Authentication (`X-API-KEY`).
 - [x] Health Dataset Upload.
-- [ ] Diagnosis AI Engine (In development).
-- [ ] API Routes for Symptoms and Diagnoses (In development).
+- [x] Diagnosis AI Engine (Gemini Integration).
+- [x] API Routes for Symptoms and Diagnoses (`/api/chat`).
 
 ### Dataset Upload
 `POST /api/datasets/upload`
@@ -208,6 +208,54 @@ To ensure security is working correctly, you can run the automated tests:
 
 ```bash
 php artisan test tests/Feature/ApiKeyTest.php
+```
+
+### Health Diagnosis Chat
+`POST /api/chat`
+
+Used to interact with the AI agent for health pre-diagnoses. The agent uses uploaded datasets as context.
+
+#### Payload (New Message):
+```json
+{
+    "message": "Estou sentindo febre e dor de cabeça."
+}
+```
+
+#### Payload (With History - 2 interactions):
+```json
+{
+    "message": "E o que eu posso fazer sobre isso?",
+    "history": [
+        {
+            "role": "user",
+            "parts": [{"text": "Olá, estou com febre."}]
+        },
+        {
+            "role": "model",
+            "parts": [{"text": "Olá! Percebo que você mencionou febre. Para uma triagem melhor, você tem tosse ou dificuldade de respirar?"}]
+        }
+    ]
+}
+```
+
+#### Success Response (200 OK):
+```json
+{
+    "status": "success",
+    "data": {
+        "response": "Baseado nos sintomas relatados e em casos similares que acompanhamos, a febre associada a dor de cabeça pode indicar um quadro viral..."
+    }
+}
+```
+
+#### Error Responses:
+
+**Unauthorized (401 Unauthorized):**
+```json
+{
+    "message": "Unauthorized: Invalid or missing API Key"
+}
 ```
 
 ---
