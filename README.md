@@ -6,8 +6,8 @@ This project is part of the **Integrated Project** (PI) course at university. Th
 
 - [x] API Key Authentication (`X-API-KEY`).
 - [x] Health Dataset Upload.
-- [ ] Diagnosis AI Engine (In development).
-- [ ] API Routes for Symptoms and Diagnoses (In development).
+- [x] Diagnosis AI Engine (Gemini Integration).
+- [x] API Routes for Symptoms and Diagnoses (`/api/chat`).
 
 ### Dataset Upload
 `POST /api/datasets/upload`
@@ -209,6 +209,53 @@ To ensure security is working correctly, you can run the automated tests:
 ```bash
 php artisan test tests/Feature/ApiKeyTest.php
 ```
+
+### Health Diagnosis Chat
+`POST /api/chat`
+
+Used to interact with the AI agent for health pre-diagnoses. The agent uses uploaded datasets as context.
+
+**Authentication Required**: `Bearer <sanctum_token>` and `X-API-KEY`.
+
+#### Payload (New Message):
+```json
+{
+    "message": "Estou sentindo febre e dor de cabeça."
+}
+```
+
+#### Payload (Continuing a Conversation):
+```json
+{
+    "message": "E o que eu posso fazer sobre isso?",
+    "conversation_id": 1
+}
+```
+
+#### Success Response (200 OK):
+```json
+{
+    "status": "success",
+    "data": {
+        "conversation_id": 1,
+        "response": "Baseado nos sintomas relatados..."
+    }
+}
+```
+
+---
+
+### Chat History
+
+#### List Conversations
+`GET /api/conversations`
+
+**Authentication Required**: `Bearer <sanctum_token>`.
+
+#### Get Conversation Detail
+`GET /api/conversations/{id}`
+
+**Authentication Required**: `Bearer <sanctum_token>`.
 
 ---
 *Developed by [Giordano Berwig] for the Integrated Project.*
