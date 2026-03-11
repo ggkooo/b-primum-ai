@@ -215,6 +215,8 @@ php artisan test tests/Feature/ApiKeyTest.php
 
 Used to interact with the AI agent for health pre-diagnoses. The agent uses uploaded datasets as context.
 
+**Authentication Required**: `Bearer <sanctum_token>` and `X-API-KEY`.
+
 #### Payload (New Message):
 ```json
 {
@@ -222,20 +224,11 @@ Used to interact with the AI agent for health pre-diagnoses. The agent uses uplo
 }
 ```
 
-#### Payload (With History - 2 interactions):
+#### Payload (Continuing a Conversation):
 ```json
 {
     "message": "E o que eu posso fazer sobre isso?",
-    "history": [
-        {
-            "role": "user",
-            "parts": [{"text": "Olá, estou com febre."}]
-        },
-        {
-            "role": "model",
-            "parts": [{"text": "Olá! Percebo que você mencionou febre. Para uma triagem melhor, você tem tosse ou dificuldade de respirar?"}]
-        }
-    ]
+    "conversation_id": 1
 }
 ```
 
@@ -244,19 +237,25 @@ Used to interact with the AI agent for health pre-diagnoses. The agent uses uplo
 {
     "status": "success",
     "data": {
-        "response": "Baseado nos sintomas relatados e em casos similares que acompanhamos, a febre associada a dor de cabeça pode indicar um quadro viral..."
+        "conversation_id": 1,
+        "response": "Baseado nos sintomas relatados..."
     }
 }
 ```
 
-#### Error Responses:
+---
 
-**Unauthorized (401 Unauthorized):**
-```json
-{
-    "message": "Unauthorized: Invalid or missing API Key"
-}
-```
+### Chat History
+
+#### List Conversations
+`GET /api/conversations`
+
+**Authentication Required**: `Bearer <sanctum_token>`.
+
+#### Get Conversation Detail
+`GET /api/conversations/{id}`
+
+**Authentication Required**: `Bearer <sanctum_token>`.
 
 ---
 *Developed by [Giordano Berwig] for the Integrated Project.*
