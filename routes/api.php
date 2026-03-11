@@ -11,5 +11,9 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::post('/datasets/upload', [DatasetController::class, 'upload']);
 Route::post('/datasets/{id}/parse', [DatasetController::class, 'parse']);
 
-Route::post('/chat', [ChatController::class, 'chat']);
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/chat', [ChatController::class, 'chat']);
+    Route::get('/conversations', [ChatController::class, 'index']);
+    Route::get('/conversations/{id}', [ChatController::class, 'show']);
+});
 

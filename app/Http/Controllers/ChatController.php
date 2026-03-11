@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Dataset;
+use App\Models\Conversation;
+use App\Models\ChatMessage;
 use App\Services\GeminiService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use App\Models\Dataset;
 
 class ChatController extends Controller
 {
@@ -16,22 +18,72 @@ class ChatController extends Controller
         $this->geminiService = $geminiService;
     }
 
-    /**
-     * Handle chat communication.
-     *
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
-     */
+    public function index(Request $request)
+    {
+        $conversations = $request->user()->conversations()->orderBy('last_message_at', 'desc')->get();
+
+        return response()->json([
+            'status' => 'success',
+            'data' => [
+                'conversations' => $conversations,
+            ],
+        ]);
+    }
+
+    public function show(Request $request, $id)
+    {
+        $conversation = Conversation::with(['messages' => function($query) {
+            $query->orderBy('created_at', 'asc');
+        }])->where('user_id', $request->user()->id)->findOrFail($id);
+
+        return response()->json([
+            'status' => 'success',
+            'data' => [
+                'conversation' => $conversation,
+            ],
+        ]);
+    }
+
     public function chat(Request $request)
     {
         set_time_limit(0); // Remove execution time limit for AI response
         $request->validate([
             'message' => 'required|string',
-            'history' => 'nullable|array',
+            'conversation_id' => 'nullable|exists:conversations,id',
         ]);
 
         $userMessage = $request->input('message');
-        $history = $request->input('history', []);
+        $conversationId = $request->input('conversation_id');
+        $user = $request->user();
+
+        // Find or create conversation
+        if ($conversationId) {
+            $conversation = Conversation::where('user_id', $user->id)->findOrFail($conversationId);
+        } else {
+            $conversation = Conversation::create([
+                'user_id' => $user->id,
+                'title' => substr($userMessage, 0, 50) . '...',
+                'last_message_at' => now(),
+            ]);
+        }
+
+        // Save user message
+        ChatMessage::create([
+            'conversation_id' => $conversation->id,
+            'role' => 'user',
+            'content' => $userMessage,
+        ]);
+
+        // Get History from DB for Gemini
+        $history = $conversation->messages()
+            ->orderBy('created_at', 'asc')
+            ->get()
+            ->map(function ($msg) {
+                return [
+                    'role' => $msg->role,
+                    'parts' => [['text' => $msg->content]]
+                ];
+            })->toArray();
 
         // Retrieve RAG Context from parsed datasets
         $context = $this->getParsedDatasetsContext();
@@ -39,9 +91,19 @@ class ChatController extends Controller
         // Generate AI Response
         $aiResponse = $this->geminiService->generateResponse($userMessage, $history, $context);
 
+        // Save AI message
+        ChatMessage::create([
+            'conversation_id' => $conversation->id,
+            'role' => 'model',
+            'content' => $aiResponse,
+        ]);
+
+        $conversation->update(['last_message_at' => now()]);
+
         return response()->json([
             'status' => 'success',
             'data' => [
+                'conversation_id' => $conversation->id,
                 'response' => $aiResponse,
             ],
         ]);
