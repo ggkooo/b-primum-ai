@@ -21,8 +21,9 @@ Used to upload a CSV dataset to the platform.
 ```json
 {
     "status": "success",
-    "message": "Dataset uploaded successfully",
+    "message": "Dataset uploaded successfully. Parsing started in background.",
     "data": {
+        "id": 1,
         "filename": "Disease_symptom_and_patient_profile_dataset.csv",
         "path": "datasets/RV0G2GrCbPTUWQGXaPRnPqA8NrsIuKo5aCXFDuJH.csv",
         "size": 20514
@@ -207,7 +208,7 @@ Used to authenticate a user and receive a session token.
 To ensure security is working correctly, you can run the automated tests:
 
 ```bash
-php artisan test tests/Feature/ApiKeyTest.php
+php artisan test tests/Unit tests/Feature
 ```
 
 ### Health Diagnosis Chat
@@ -217,18 +218,20 @@ Used to interact with the AI agent for health pre-diagnoses. The agent uses uplo
 
 **Authentication Required**: `Bearer <sanctum_token>` and `X-API-KEY`.
 
-#### Payload (New Message):
+#### Payload (New Conversation):
+Simplesmente envie a mensagem sem `conversation_id`. Uma nova conversa será criada automaticamente:
 ```json
 {
     "message": "Estou sentindo febre e dor de cabeça."
 }
 ```
 
-#### Payload (Continuing a Conversation):
+#### Payload (Continue Existing Conversation):
+Envie o `conversation_id` (UUID) da conversa que deseja continuar:
 ```json
 {
     "message": "E o que eu posso fazer sobre isso?",
-    "conversation_id": 1
+    "conversation_id": "550e8400-e29b-41d4-a716-446655440000"
 }
 ```
 
@@ -237,7 +240,7 @@ Used to interact with the AI agent for health pre-diagnoses. The agent uses uplo
 {
     "status": "success",
     "data": {
-        "conversation_id": 1,
+        "conversation_id": "550e8400-e29b-41d4-a716-446655440000",
         "response": "Baseado nos sintomas relatados..."
     }
 }
