@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Conversation extends Model
 {
+    use \Illuminate\Database\Eloquent\Concerns\HasUuids;
+
     protected $fillable = [
         'user_id',
         'title',
