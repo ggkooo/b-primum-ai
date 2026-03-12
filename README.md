@@ -1,168 +1,229 @@
-# Primum AI - Health Diagnosis AI
+# Primum AI - Health Triage API
 
-This project is part of the **Integrated Project** (PI) course at university. The goal is to develop an AI capable of providing health pre-diagnoses based on user-provided symptoms, using specialized datasets.
+Primum AI is a Laravel-based backend for AI-assisted health triage. It allows clients to:
 
-## 🚀 Features
+- register and authenticate users,
+- upload and parse health datasets,
+- send chat messages to an AI model,
+- persist and retrieve conversation history.
 
-- [x] API Key Authentication (`X-API-KEY`).
-- [x] Health Dataset Upload.
-- [x] Diagnosis AI Engine (Gemini Integration).
-- [x] API Routes for Symptoms and Diagnoses (`/api/chat`).
+This README is written for frontend and API integration.
 
-### Dataset Upload
-`POST /api/datasets/upload`
+## Overview
 
-Used to upload a CSV dataset to the platform.
+- Framework: Laravel 12
+- Language: PHP 8.2+
+- Auth: API key (`X-API-KEY`) + Laravel Sanctum (Bearer token on protected routes)
+- AI provider: Gemini (configured through environment variables)
+- Conversation identifier: UUID (`conversation_id`)
 
-#### Payload (multipart/form-data):
-- `dataset`: (file) The CSV file to upload.
+## Quick Start
 
-#### Success Response (201 Created):
-```json
-{
-    "status": "success",
-    "message": "Dataset uploaded successfully",
-    "data": {
-        "filename": "Disease_symptom_and_patient_profile_dataset.csv",
-        "path": "datasets/RV0G2GrCbPTUWQGXaPRnPqA8NrsIuKo5aCXFDuJH.csv",
-        "size": 20514
-    }
-}
+1. Clone and install dependencies:
+
+```bash
+git clone git@github.com:ggkooo/b-primum-ai.git
+cd b-primum-ai
+composer install
+npm install
 ```
 
-#### Error Responses:
+2. Configure environment:
 
-**Missing File (422 Unprocessable Entity):**
-```json
-{
-    "message": "A dataset file is required.",
-    "errors": {
-        "dataset": [
-            "A dataset file is required."
-        ]
-    }
-}
+```bash
+cp .env.example .env
+php artisan key:generate
 ```
 
-**Unauthorized (401 Unauthorized):**
+3. Configure at least these variables in `.env`:
+
+```env
+APP_API_KEY=your_api_key_here
+GEMINI_API_KEY=your_gemini_key_here
+GEMINI_MODEL=gemini-1.5-flash
+```
+
+4. Prepare database and run app:
+
+```bash
+php artisan migrate
+php artisan serve
+```
+
+5. Optional but recommended for background parsing:
+
+```bash
+php artisan queue:listen --tries=1 --timeout=0
+```
+
+## Authentication
+
+### 1. API Key (required on all routes)
+
+Every request must include:
+
+```http
+X-API-KEY: <APP_API_KEY>
+```
+
+If missing or invalid, the API returns:
+
 ```json
 {
     "message": "Unauthorized: Invalid or missing API Key"
 }
 ```
 
-## 🛠️ Tech Stack
+### 2. Sanctum Bearer Token (protected routes only)
 
-- **Framework**: [Laravel 12](https://laravel.com)
-- **Language**: PHP 8.2+
-- **Database**: SQLite (Initial setup)
+Routes under `auth:sanctum` also require:
 
-## 🔐 API Authentication
-
-All project routes are protected by a security layer. The `X-API-KEY` header is mandatory for every request.
-
-### How to use:
-
-- **Header**: `X-API-KEY`
-- **Value**: Your key generated in the `.env` file (e.g., `bb490c0ecd1...`)
-
-#### Example with cURL:
-```bash
-curl -H "X-API-KEY: your_api_key_here" http://localhost:8000/
+```http
+Authorization: Bearer <access_token>
 ```
 
-## 📡 API Endpoints
+Protected routes:
 
-### User Registration
-`POST /api/register`
+- `POST /api/chat`
+- `GET /api/conversations`
+- `GET /api/conversations/{id}`
 
-Used to register a new user in the platform.
+## Response Conventions
 
-#### Payload:
+### Success envelope
+
+Most successful responses use:
+
 ```json
 {
-    "name": "Giordano Bruno",
-    "email": "giordanoberwig@proton.me",
-    "password": "12345678",
-    "password_confirmation": "12345678"
+    "status": "success",
+    "message": "Optional message",
+    "data": {}
 }
 ```
 
-#### Success Response (201 Created):
+`message` is included when relevant.
+
+### Application error envelope
+
+Custom application errors use:
+
+```json
+{
+    "status": "error",
+    "message": "Description"
+}
+```
+
+### Validation error envelope
+
+Laravel validation errors return:
+
+```json
+{
+    "message": "The given data was invalid.",
+    "errors": {
+        "field_name": ["Validation message"]
+    }
+}
+```
+
+## API Endpoints
+
+### POST `/api/register`
+
+Registers a new user.
+
+Headers:
+
+- `X-API-KEY: <APP_API_KEY>`
+- `Content-Type: application/json`
+
+Request body:
+
+```json
+{
+    "name": "John Doe",
+    "email": "john@example.com",
+    "password": "password123",
+    "password_confirmation": "password123"
+}
+```
+
+Validation rules:
+
+- `name`: required, string, max 255
+- `email`: required, string, email, max 255, unique
+- `password`: required, string, min 8, confirmed
+
+Success response (`201`):
+
 ```json
 {
     "status": "success",
     "message": "User registered successfully",
     "data": {
         "user": {
-            "name": "Giordano Bruno",
-            "email": "giordanoberwig@proton.me",
-            "updated_at": "2026-03-10T17:08:44.000000Z",
-            "created_at": "2026-03-10T17:08:44.000000Z",
-            "id": 1
+            "id": 1,
+            "name": "John Doe",
+            "email": "john@example.com",
+            "created_at": "2026-03-11T12:00:00.000000Z",
+            "updated_at": "2026-03-11T12:00:00.000000Z"
         }
     }
 }
 ```
 
-#### Error Responses:
+Common errors:
 
-**Validation Error (422 Unprocessable Entity):**
+- `422` validation errors (for example duplicate email)
+- `401` invalid/missing API key
+
+### POST `/api/login`
+
+Authenticates user and returns a Sanctum access token.
+
+Headers:
+
+- `X-API-KEY: <APP_API_KEY>`
+- `Content-Type: application/json`
+
+Request body:
+
 ```json
 {
-    "message": "The email has already been taken.",
-    "errors": {
-        "email": [
-            "The email has already been taken."
-        ]
-    }
+    "email": "john@example.com",
+    "password": "password123"
 }
 ```
 
-**Unauthorized (401 Unauthorized):**
-```json
-{
-    "message": "Unauthorized: Invalid or missing API Key"
-}
-```
+Validation rules:
 
+- `email`: required, email, string
+- `password`: required, string
 
-### User Login
-`POST /api/login`
+Success response (`200`):
 
-Used to authenticate a user and receive a session token.
-
-#### Payload:
-```json
-{
-    "email": "giordanoberwig@proton.me",
-    "password": "12345678"
-}
-```
-
-#### Success Response (200 OK):
 ```json
 {
     "status": "success",
     "message": "Login successful",
     "data": {
-        "access_token": "1|QKtUHovpsnhTV63v3inHgyr1RqwtCnhViFNTYyYI20027eed",
+        "access_token": "1|token_value_here",
         "token_type": "Bearer",
         "user": {
             "id": 1,
-            "name": "Giordano Bruno",
-            "email": "giordanoberwig@proton.me",
-            "email_verified_at": null,
-            "created_at": "2026-03-10T17:18:01.000000Z",
-            "updated_at": "2026-03-10T17:18:01.000000Z"
+            "name": "John Doe",
+            "email": "john@example.com",
+            "created_at": "2026-03-11T12:00:00.000000Z",
+            "updated_at": "2026-03-11T12:00:00.000000Z"
         }
     }
 }
 ```
 
-#### Error Responses:
+Invalid credentials (`401`):
 
-**Invalid Credentials (401 Unauthorized):**
 ```json
 {
     "status": "error",
@@ -170,92 +231,248 @@ Used to authenticate a user and receive a session token.
 }
 ```
 
-**Unauthorized (401 Unauthorized):**
-```json
-{
-    "message": "Unauthorized: Invalid or missing API Key"
-}
-```
+### POST `/api/datasets/upload`
 
+Uploads a CSV file and queues background parsing.
 
-## ⚙️ Installation and Setup
+Headers:
 
-1. **Clone the repository:**
-   ```bash
-   git clone git@github.com:ggkooo/b-primum-ai.git
-   cd primum-ai
-   ```
+- `X-API-KEY: <APP_API_KEY>`
+- `Content-Type: multipart/form-data`
 
-2. **Install dependencies:**
-   ```bash
-   composer install
-   npm install
-   ```
+Form-data:
 
-3. **Configure Environment:**
-   - Copy `.env.example` to `.env`.
-   - Generate application key: `php artisan key:generate`.
-   - Add your `APP_API_KEY` to the `.env` file.
+- `dataset`: required file (`csv`/`txt`), max `10MB`
 
-4. **Start the Server:**
-   ```bash
-   php artisan serve
-   ```
+Success response (`201`):
 
-## 🧪 Testing
-
-To ensure security is working correctly, you can run the automated tests:
-
-```bash
-php artisan test tests/Feature/ApiKeyTest.php
-```
-
-### Health Diagnosis Chat
-`POST /api/chat`
-
-Used to interact with the AI agent for health pre-diagnoses. The agent uses uploaded datasets as context.
-
-**Authentication Required**: `Bearer <sanctum_token>` and `X-API-KEY`.
-
-#### Payload (New Message):
-```json
-{
-    "message": "Estou sentindo febre e dor de cabeça."
-}
-```
-
-#### Payload (Continuing a Conversation):
-```json
-{
-    "message": "E o que eu posso fazer sobre isso?",
-    "conversation_id": 1
-}
-```
-
-#### Success Response (200 OK):
 ```json
 {
     "status": "success",
+    "message": "Dataset uploaded successfully. Parsing started in background.",
     "data": {
-        "conversation_id": 1,
-        "response": "Baseado nos sintomas relatados..."
+        "id": 1,
+        "filename": "Disease_symptom_and_patient_profile_dataset.csv",
+        "path": "datasets/abc123.csv",
+        "size": 20514
     }
 }
 ```
 
----
+Common errors:
 
-### Chat History
+- `422` invalid or missing file
+- `401` invalid/missing API key
 
-#### List Conversations
-`GET /api/conversations`
+### POST `/api/datasets/{id}/parse`
 
-**Authentication Required**: `Bearer <sanctum_token>`.
+Parses a previously uploaded dataset immediately.
 
-#### Get Conversation Detail
-`GET /api/conversations/{id}`
+Headers:
 
-**Authentication Required**: `Bearer <sanctum_token>`.
+- `X-API-KEY: <APP_API_KEY>`
 
----
-*Developed by [Giordano Berwig] for the Integrated Project.*
+Path params:
+
+- `id` (integer): dataset id
+
+Success response (`200`):
+
+```json
+{
+    "status": "success",
+    "message": "Dataset parsed successfully",
+    "data": {
+        "id": 1,
+        "parsed_path": "datasets/parsed_1.json",
+        "metadata": {
+            "total_records": 100,
+            "source_filename": "Disease_symptom_and_patient_profile_dataset.csv"
+        }
+    }
+}
+```
+
+Common errors:
+
+- `404` dataset not found
+- `500` parsing failed
+- `401` invalid/missing API key
+
+### POST `/api/chat` (protected)
+
+Sends a user message to AI and stores conversation/messages.
+
+Headers:
+
+- `X-API-KEY: <APP_API_KEY>`
+- `Authorization: Bearer <access_token>`
+- `Content-Type: application/json`
+
+Request body (new conversation):
+
+```json
+{
+    "message": "I have a severe headache and fever."
+}
+```
+
+Request body (continue existing conversation):
+
+```json
+{
+    "message": "Now I am also vomiting after meals.",
+    "conversation_id": "019cdf4e-fcc8-7020-bdd0-82e59d496adf"
+}
+```
+
+Validation rules:
+
+- `message`: required, string
+- `conversation_id`: optional, UUID, must exist in `conversations.id`
+
+Success response (`200`):
+
+```json
+{
+    "status": "success",
+    "data": {
+        "conversation_id": "019cdf4e-fcc8-7020-bdd0-82e59d496adf",
+        "response": "Based on your symptoms, you should seek urgent medical care..."
+    }
+}
+```
+
+Important integration notes:
+
+- If `conversation_id` is omitted, a new conversation is created.
+- If `conversation_id` is sent, the message is appended to that conversation.
+- Always store the returned `conversation_id` in the frontend and reuse it for follow-up messages.
+
+Common errors:
+
+- `401` unauthenticated (missing/invalid Bearer token)
+- `401` invalid/missing API key
+- `422` invalid payload (`message` missing, invalid UUID, unknown conversation)
+- `404` conversation not found for current user (ownership enforcement)
+
+### GET `/api/conversations` (protected)
+
+Lists conversations for authenticated user ordered by `last_message_at` descending.
+
+Headers:
+
+- `X-API-KEY: <APP_API_KEY>`
+- `Authorization: Bearer <access_token>`
+
+Success response (`200`):
+
+```json
+{
+    "status": "success",
+    "data": {
+        "conversations": [
+            {
+                "id": "019cdf4e-fcc8-7020-bdd0-82e59d496adf",
+                "user_id": 1,
+                "title": "I have a severe headache and fever...",
+                "last_message_at": "2026-03-11T12:00:00.000000Z",
+                "created_at": "2026-03-11T11:59:00.000000Z",
+                "updated_at": "2026-03-11T12:00:00.000000Z"
+            }
+        ]
+    }
+}
+```
+
+### GET `/api/conversations/{id}` (protected)
+
+Returns one conversation with its messages (oldest to newest).
+
+Headers:
+
+- `X-API-KEY: <APP_API_KEY>`
+- `Authorization: Bearer <access_token>`
+
+Path params:
+
+- `id` (UUID): conversation id
+
+Success response (`200`):
+
+```json
+{
+    "status": "success",
+    "data": {
+        "conversation": {
+            "id": "019cdf4e-fcc8-7020-bdd0-82e59d496adf",
+            "user_id": 1,
+            "title": "I have a severe headache and fever...",
+            "last_message_at": "2026-03-11T12:00:00.000000Z",
+            "created_at": "2026-03-11T11:59:00.000000Z",
+            "updated_at": "2026-03-11T12:00:00.000000Z",
+            "messages": [
+                {
+                    "id": 1,
+                    "conversation_id": "019cdf4e-fcc8-7020-bdd0-82e59d496adf",
+                    "role": "user",
+                    "content": "I have a severe headache and fever.",
+                    "created_at": "2026-03-11T11:59:00.000000Z",
+                    "updated_at": "2026-03-11T11:59:00.000000Z"
+                },
+                {
+                    "id": 2,
+                    "conversation_id": "019cdf4e-fcc8-7020-bdd0-82e59d496adf",
+                    "role": "model",
+                    "content": "I understand. Please monitor...",
+                    "created_at": "2026-03-11T11:59:01.000000Z",
+                    "updated_at": "2026-03-11T11:59:01.000000Z"
+                }
+            ]
+        }
+    }
+}
+```
+
+Common errors:
+
+- `404` conversation not found or does not belong to authenticated user
+- `401` unauthenticated
+- `401` invalid/missing API key
+
+## Frontend Integration Flow
+
+Recommended chat flow:
+
+1. Register (`/api/register`) or login (`/api/login`).
+2. Store `access_token` securely.
+3. Start a conversation by calling `POST /api/chat` with only `message`.
+4. Save returned `data.conversation_id` (UUID) in client state.
+5. For each follow-up message, send the same `conversation_id`.
+6. Use `GET /api/conversations` to show conversation list.
+7. Use `GET /api/conversations/{id}` to load full history on screen.
+
+Minimal frontend state example:
+
+```ts
+type ChatState = {
+    accessToken: string;
+    currentConversationId: string | null;
+};
+```
+
+## Testing
+
+Available test commands:
+
+```bash
+composer test
+composer test:all
+composer test:unit
+composer test:feature
+```
+
+## Notes
+
+- This project is an academic AI-assisted triage system.
+- It does not replace medical diagnosis from qualified professionals.
