@@ -3,13 +3,14 @@
 namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Foundation\Testing\WithFaker;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class DatasetUploadTest extends TestCase
 {
+    use RefreshDatabase;
+
     public function test_can_upload_csv_dataset(): void
     {
         Storage::fake('local');
@@ -25,7 +26,7 @@ class DatasetUploadTest extends TestCase
         $response->assertStatus(201)
             ->assertJson([
                 'status' => 'success',
-                'message' => 'Dataset uploaded successfully',
+                'message' => 'Dataset uploaded successfully. Parsing started in background.',
             ]);
 
         // Check if file exists in storage/app/datasets (default disk is local)
