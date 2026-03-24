@@ -36,12 +36,13 @@ return [
     ],
 
     'gemini' => [
-        'api_key' => env('GEMINI_API_KEY'),
-        'model' => env('GEMINI_MODEL', 'gemini-flash-latest'),
-        'base_url' => env('GEMINI_BASE_URL', 'https://generativelanguage.googleapis.com/v1beta/models/'),
-        'verify_ssl' => env('GEMINI_VERIFY_SSL', false),
-        'timeout' => env('GEMINI_TIMEOUT', 120),
-        'connect_timeout' => env('GEMINI_CONNECT_TIMEOUT', 30),
+        'api_key' => env('OLLAMA_API_KEY', env('GEMINI_API_KEY')),
+        'model' => env('OLLAMA_MODEL', env('GEMINI_MODEL', 'llama3.2:latest')),
+        'base_url' => env('OLLAMA_BASE_URL', env('GEMINI_BASE_URL', 'http://localhost:11434')),
+        'verify_ssl' => env('OLLAMA_VERIFY_SSL', env('GEMINI_VERIFY_SSL', true)),
+        'timeout' => env('OLLAMA_TIMEOUT', env('GEMINI_TIMEOUT', 120)),
+        'connect_timeout' => env('OLLAMA_CONNECT_TIMEOUT', env('GEMINI_CONNECT_TIMEOUT', 30)),
+        'temperature' => env('OLLAMA_TEMPERATURE', 0.7),
     ],
 
 ];
