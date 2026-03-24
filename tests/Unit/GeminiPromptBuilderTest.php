@@ -13,6 +13,9 @@ class GeminiPromptBuilderTest extends TestCase
 
         $prompt = $builder->buildSystemInstruction('Contexto clinico base');
 
+        $this->assertStringContainsString('Hipóteses diagnósticas iniciais', $prompt);
+        $this->assertStringContainsString('Nível de urgência', $prompt);
+        $this->assertStringContainsString('Próximas perguntas objetivas', $prompt);
         $this->assertStringContainsString('triagem assistida por IA', $prompt);
         $this->assertStringContainsString('Contexto clinico base', $prompt);
     }
