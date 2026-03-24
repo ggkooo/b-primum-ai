@@ -14,7 +14,7 @@ This README is written for frontend and API integration.
 - Framework: Laravel 12
 - Language: PHP 8.2+
 - Auth: API key (`X-API-KEY`) + Laravel Sanctum (Bearer token on protected routes)
-- AI provider: Gemini (configured through environment variables)
+- AI provider: Ollama/Open WebUI (configured through environment variables)
 - Conversation identifier: UUID (`conversation_id`)
 
 ## Quick Start
@@ -39,8 +39,9 @@ php artisan key:generate
 
 ```env
 APP_API_KEY=your_api_key_here
-GEMINI_API_KEY=your_gemini_key_here
-GEMINI_MODEL=gemini-1.5-flash
+OLLAMA_API_KEY=your_ollama_or_webui_api_key_here
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=llama3.1:8b
 ```
 
 4. Prepare database and run app:
