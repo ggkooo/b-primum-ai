@@ -21,15 +21,23 @@ class DatasetController extends Controller
      */
     public function upload(DatasetUploadRequest $request): JsonResponse
     {
+        set_time_limit(0);
+
         $file = $request->file('dataset');
-        $dataset = $this->datasetService->uploadAndQueueParse($file);
+        $dataset = $this->datasetService->uploadAndParse($file);
+
+        if (!$dataset) {
+            return $this->error('Upload realizado, mas o parse falhou.', 500);
+        }
 
         return $this->success([
             'id' => $dataset->id,
             'filename' => $dataset->original_filename,
             'path' => $dataset->storage_path,
+            'parsed_path' => $dataset->parsed_path,
+            'metadata' => $dataset->metadata,
             'size' => $file->getSize(),
-        ], 'Dataset uploaded successfully. Parsing started in background.', 201);
+        ], 'Dataset uploaded and parsed successfully', 200);
     }
 
     /**
