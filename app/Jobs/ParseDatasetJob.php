@@ -12,6 +12,9 @@ class ParseDatasetJob implements ShouldQueue
 {
     use Queueable;
 
+    public int $tries = 1;
+    public int $timeout = 7200;
+
     /**
      * Create a new job instance.
      */
