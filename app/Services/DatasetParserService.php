@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Dataset;
+use App\Models\DatasetRecord;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -12,11 +13,13 @@ class DatasetParserService
         private ?DatasetCsvReader $csvReader = null,
         private ?DatasetSemanticDescriptionService $semanticDescriptionService = null,
         private ?DatasetParsedPayloadBuilder $payloadBuilder = null,
+        private ?OllamaService $ollamaService = null,
     ) {
         // Keep backward compatibility for manual `new DatasetParserService()` usage.
         $this->csvReader ??= new DatasetCsvReader();
         $this->semanticDescriptionService ??= new DatasetSemanticDescriptionService();
         $this->payloadBuilder ??= new DatasetParsedPayloadBuilder();
+        $this->ollamaService ??= new OllamaService(new OllamaPromptBuilder());
     }
 
     /**
@@ -45,10 +48,16 @@ class DatasetParserService
 
         foreach ($rows as $row) {
             $semanticDescription = $this->semanticDescriptionService->generateSemanticDescription($row, $schema);
+            $embedding = null;
+
+            if ((bool) config('services.ollama.generate_embeddings', false)) {
+                $embedding = $this->ollamaService->generateEmbedding($semanticDescription);
+            }
 
             $records[] = [
                 'original' => $row,
                 'semantic_description' => $semanticDescription,
+                'embedding' => $embedding,
             ];
         }
 
@@ -66,6 +75,18 @@ class DatasetParserService
             'parsed_path' => $parsedFilename,
             'metadata' => $parsedData['metadata'],
         ]);
+
+        DatasetRecord::where('dataset_id', $dataset->id)->delete();
+
+        foreach ($records as $index => $record) {
+            DatasetRecord::create([
+                'dataset_id' => $dataset->id,
+                'record_index' => $index,
+                'original' => $record['original'] ?? null,
+                'semantic_description' => (string) ($record['semantic_description'] ?? ''),
+                'embedding' => $record['embedding'] ?? null,
+            ]);
+        }
 
         return true;
     }
