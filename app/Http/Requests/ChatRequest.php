@@ -6,6 +6,22 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class ChatRequest extends FormRequest
 {
+    protected function prepareForValidation(): void
+    {
+        $snakeCaseConversationId = $this->input('conversation_id');
+        $camelCaseConversationId = $this->input('conversationId');
+
+        $normalizedConversationId = $snakeCaseConversationId ?? $camelCaseConversationId;
+
+        if ($normalizedConversationId === '' || $normalizedConversationId === 'null') {
+            $normalizedConversationId = null;
+        }
+
+        $this->merge([
+            'conversation_id' => $normalizedConversationId,
+        ]);
+    }
+
     /**
      * Determine if the user is authorized to make this request.
      */
