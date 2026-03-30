@@ -8,8 +8,7 @@ use App\Models\User;
 class ChatService
 {
     public function __construct(
-        private readonly GeminiService $geminiService,
-        private readonly DatasetContextService $datasetContextService,
+        private readonly OllamaService $ollamaService,
         private readonly ConversationResolverService $conversationResolverService,
         private readonly ChatHistoryBuilderService $chatHistoryBuilderService,
     ) {
@@ -30,18 +29,16 @@ class ChatService
             'content' => $userMessage,
         ]);
 
-        $history = $this->chatHistoryBuilderService->buildForConversation($conversation);
+        $conversation->update(['last_message_at' => now()]);
 
-        $context = $this->datasetContextService->buildContext();
-        $aiResponse = $this->geminiService->generateResponse($userMessage, $history, $context);
+        $history = $this->chatHistoryBuilderService->buildForConversation($conversation);
+        $aiResponse = $this->ollamaService->generateResponse($userMessage, $history);
 
         ChatMessage::create([
             'conversation_id' => $conversation->id,
             'role' => 'model',
             'content' => $aiResponse,
         ]);
-
-        $conversation->update(['last_message_at' => now()]);
 
         return [
             'conversation_id' => $conversation->id,
