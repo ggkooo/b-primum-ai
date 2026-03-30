@@ -35,13 +35,17 @@ return [
         ],
     ],
 
-    'gemini' => [
-        'api_key' => env('GEMINI_API_KEY'),
-        'model' => env('GEMINI_MODEL', 'gemini-flash-latest'),
-        'base_url' => env('GEMINI_BASE_URL', 'https://generativelanguage.googleapis.com/v1beta/models/'),
-        'verify_ssl' => env('GEMINI_VERIFY_SSL', false),
-        'timeout' => env('GEMINI_TIMEOUT', 120),
-        'connect_timeout' => env('GEMINI_CONNECT_TIMEOUT', 30),
+    'ollama' => [
+        'api_key' => env('OLLAMA_API_KEY'),
+        'model' => env('OLLAMA_MODEL', 'llama3.1'),
+        'embedding_model' => env('OLLAMA_EMBEDDING_MODEL', 'nomic-embed-text'),
+        'base_url' => env('OLLAMA_BASE_URL', 'http://localhost:11434'),
+        'auth_header' => env('OLLAMA_AUTH_HEADER', 'x-api-key'),
+        'verify_ssl' => env('OLLAMA_VERIFY_SSL', true),
+        'ca_bundle' => env('OLLAMA_CA_BUNDLE'),
+        'timeout' => env('OLLAMA_TIMEOUT', 0),
+        'connect_timeout' => env('OLLAMA_CONNECT_TIMEOUT', 0),
+        'generate_embeddings' => env('OLLAMA_GENERATE_EMBEDDINGS', false),
     ],
 
 ];
