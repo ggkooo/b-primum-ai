@@ -7,8 +7,7 @@ use App\Models\User;
 use App\Services\ChatHistoryBuilderService;
 use App\Services\ChatService;
 use App\Services\ConversationResolverService;
-use App\Services\DatasetContextService;
-use App\Services\GeminiService;
+use App\Services\OllamaService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Mockery;
 use Tests\TestCase;
@@ -26,8 +25,7 @@ class ChatServiceTest extends TestCase
             'last_message_at' => now()->subMinute(),
         ]);
 
-        $geminiMock = Mockery::mock(GeminiService::class);
-        $datasetContextMock = Mockery::mock(DatasetContextService::class);
+        $ollamaMock = Mockery::mock(OllamaService::class);
         $resolverMock = Mockery::mock(ConversationResolverService::class);
         $historyBuilderMock = Mockery::mock(ChatHistoryBuilderService::class);
 
@@ -40,16 +38,15 @@ class ChatServiceTest extends TestCase
             ->once()
             ->with($conversation)
             ->andReturn([
-                ['role' => 'user', 'parts' => [['text' => 'Teste de chat']]],
+                ['role' => 'user', 'content' => 'Teste de chat'],
             ]);
 
-        $datasetContextMock->shouldReceive('buildContext')->once()->andReturn('Contexto');
-        $geminiMock->shouldReceive('generateResponse')
+        $ollamaMock->shouldReceive('generateResponse')
             ->once()
-            ->with('Teste de chat', Mockery::type('array'), 'Contexto')
+            ->with('Teste de chat', Mockery::type('array'))
             ->andReturn('Resposta IA');
 
-        $service = new ChatService($geminiMock, $datasetContextMock, $resolverMock, $historyBuilderMock);
+        $service = new ChatService($ollamaMock, $resolverMock, $historyBuilderMock);
         $result = $service->handleMessage($user, 'Teste de chat', $conversation->id);
 
         $this->assertSame($conversation->id, $result['conversation_id']);
