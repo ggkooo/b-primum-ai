@@ -8,7 +8,7 @@ use App\Models\Conversation;
 class ChatHistoryBuilderService
 {
     /**
-     * @return array<int, array{role:string,parts:array<int, array{text:string}>}>
+     * @return array<int, array{role:string,content:string}>
      */
     public function buildForConversation(Conversation $conversation): array
     {
@@ -16,8 +16,8 @@ class ChatHistoryBuilderService
             ->orderBy('created_at', 'asc')
             ->get()
             ->map(fn (ChatMessage $message): array => [
-                'role' => $message->role,
-                'parts' => [['text' => $message->content]],
+                'role' => $message->role === 'model' ? 'assistant' : $message->role,
+                'content' => $message->content,
             ])
             ->toArray();
     }
