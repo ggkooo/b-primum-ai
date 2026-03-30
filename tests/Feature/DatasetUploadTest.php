@@ -15,7 +15,7 @@ class DatasetUploadTest extends TestCase
     {
         Storage::fake('local');
 
-        $file = UploadedFile::fake()->create('test_dataset.csv', 100, 'text/csv');
+        $file = UploadedFile::fake()->createWithContent('test_dataset.csv', "symptom,target\nfever,flu");
 
         $response = $this->postJson('/api/datasets/upload', [
             'dataset' => $file,
@@ -23,10 +23,10 @@ class DatasetUploadTest extends TestCase
             'X-API-KEY' => env('APP_API_KEY'),
         ]);
 
-        $response->assertStatus(201)
+        $response->assertStatus(200)
             ->assertJson([
                 'status' => 'success',
-                'message' => 'Dataset uploaded successfully. Parsing started in background.',
+                'message' => 'Dataset uploaded and parsed successfully',
             ]);
 
         // Check if file exists in storage/app/datasets (default disk is local)
