@@ -2,10 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Exceptions\AiProviderException;
 use App\Models\ChatMessage;
 use App\Models\Conversation;
 use App\Models\User;
-use App\Services\GeminiService;
+use App\Services\OllamaService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Mockery;
@@ -20,11 +21,11 @@ class ChatFlowTest extends TestCase
         $user = User::factory()->create();
         Sanctum::actingAs($user);
 
-        $geminiMock = Mockery::mock(GeminiService::class);
-        $geminiMock->shouldReceive('generateResponse')
+        $ollamaMock = Mockery::mock(OllamaService::class);
+        $ollamaMock->shouldReceive('generateResponse')
             ->once()
             ->andReturn('Resposta simulada da IA');
-        $this->app->instance(GeminiService::class, $geminiMock);
+        $this->app->instance(OllamaService::class, $ollamaMock);
 
         $response = $this->postJson('/api/chat', [
             'message' => 'Estou com dor de cabeca',
@@ -73,11 +74,11 @@ class ChatFlowTest extends TestCase
             'last_message_at' => now(),
         ]);
 
-        $geminiMock = Mockery::mock(GeminiService::class);
-        $geminiMock->shouldReceive('generateResponse')
+        $ollamaMock = Mockery::mock(OllamaService::class);
+        $ollamaMock->shouldReceive('generateResponse')
             ->once()
             ->andReturn('Nova conversa criada');
-        $this->app->instance(GeminiService::class, $geminiMock);
+        $this->app->instance(OllamaService::class, $ollamaMock);
 
         // Sending message without conversation_id should create a new conversation
         $response = $this->postJson('/api/chat', [
@@ -90,6 +91,42 @@ class ChatFlowTest extends TestCase
 
         // Should have 2 conversations: the old one and the new one
         $this->assertDatabaseCount('conversations', 2);
+    }
+
+    public function test_camel_case_conversation_id_reuses_existing_conversation(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $conversation = Conversation::create([
+            'user_id' => $user->id,
+            'title' => 'Conversa em andamento',
+            'last_message_at' => now(),
+        ]);
+
+        $ollamaMock = Mockery::mock(OllamaService::class);
+        $ollamaMock->shouldReceive('generateResponse')
+            ->once()
+            ->andReturn('Resposta na mesma conversa');
+        $this->app->instance(OllamaService::class, $ollamaMock);
+
+        $response = $this->postJson('/api/chat', [
+            'message' => 'Mensagem de continuidade',
+            'conversationId' => $conversation->id,
+        ], [
+            'X-API-KEY' => env('APP_API_KEY'),
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.conversation_id', $conversation->id);
+
+        $this->assertDatabaseCount('conversations', 1);
+
+        $this->assertDatabaseHas('chat_messages', [
+            'conversation_id' => $conversation->id,
+            'role' => 'user',
+            'content' => 'Mensagem de continuidade',
+        ]);
     }
 
     public function test_user_cannot_send_message_to_another_users_conversation(): void
@@ -111,9 +148,9 @@ class ChatFlowTest extends TestCase
 
         Sanctum::actingAs($intruder);
 
-        $geminiMock = Mockery::mock(GeminiService::class);
-        $geminiMock->shouldNotReceive('generateResponse');
-        $this->app->instance(GeminiService::class, $geminiMock);
+        $ollamaMock = Mockery::mock(OllamaService::class);
+        $ollamaMock->shouldNotReceive('generateResponse');
+        $this->app->instance(OllamaService::class, $ollamaMock);
 
         $response = $this->postJson('/api/chat', [
             'message' => 'Tentando invadir',
@@ -123,5 +160,27 @@ class ChatFlowTest extends TestCase
         ]);
 
         $response->assertStatus(404);
+    }
+
+    public function test_returns_error_when_ai_provider_fails(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $ollamaMock = Mockery::mock(OllamaService::class);
+        $ollamaMock->shouldReceive('generateResponse')
+            ->once()
+            ->andThrow(new AiProviderException('Erro na API de IA.', 504));
+        $this->app->instance(OllamaService::class, $ollamaMock);
+
+        $response = $this->postJson('/api/chat', [
+            'message' => 'Teste com falha upstream',
+        ], [
+            'X-API-KEY' => env('APP_API_KEY'),
+        ]);
+
+        $response->assertStatus(504)
+            ->assertJsonPath('status', 'error')
+            ->assertJsonPath('message', 'Erro na API de IA.');
     }
 }
