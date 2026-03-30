@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Model;
 
 class Dataset extends Model
@@ -16,4 +17,9 @@ class Dataset extends Model
     protected $casts = [
         'metadata' => 'array',
     ];
+
+    public function records(): HasMany
+    {
+        return $this->hasMany(DatasetRecord::class);
+    }
 }
