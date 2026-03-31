@@ -30,20 +30,21 @@ class OllamaService
             ? trim($this->caBundle)
             : null;
         $this->authHeader = strtolower((string) config('services.ollama.auth_header', 'x-api-key'));
-        $this->timeout = (int) config('services.ollama.timeout', 120);
-        $this->connectTimeout = (int) config('services.ollama.connect_timeout', 30);
+        $this->timeout = (int) config('services.ollama.timeout', 0);
+        $this->connectTimeout = (int) config('services.ollama.connect_timeout', 0);
     }
 
     /**
      * @param array<int, array{role:string,content:string}> $history
      */
-    public function generateResponse(string $prompt, array $history = []): ?string
+    public function generateResponse(string $prompt, array $history = [], ?string $datasetContext = null): ?string
     {
         $messages = [
             [
                 'role' => 'system',
                 'content' => $this->promptBuilder->buildOllamaSystemInstruction(),
             ],
+            ...($this->buildDatasetContextMessages($datasetContext)),
             ...$history,
             [
                 'role' => 'user',
@@ -145,5 +146,24 @@ class OllamaService
         ];
 
         return Http::withOptions($options)->withHeaders($headers);
+    }
+
+    /**
+     * @return array<int, array{role:string,content:string}>
+     */
+    private function buildDatasetContextMessages(?string $datasetContext): array
+    {
+        if (!is_string($datasetContext) || trim($datasetContext) === '') {
+            return [];
+        }
+
+        return [
+            [
+                'role' => 'system',
+                'content' => "Contexto recuperado do dataset vetorizado (RAG):\n"
+                    . trim($datasetContext)
+                    . "\nUse esse contexto como base primaria para responder quando for relevante ao caso.",
+            ],
+        ];
     }
 }

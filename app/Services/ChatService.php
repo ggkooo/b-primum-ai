@@ -11,6 +11,7 @@ class ChatService
         private readonly OllamaService $ollamaService,
         private readonly ConversationResolverService $conversationResolverService,
         private readonly ChatHistoryBuilderService $chatHistoryBuilderService,
+        private readonly DatasetContextService $datasetContextService,
     ) {
     }
 
@@ -32,7 +33,8 @@ class ChatService
         $conversation->update(['last_message_at' => now()]);
 
         $history = $this->chatHistoryBuilderService->buildForConversation($conversation);
-        $aiResponse = $this->ollamaService->generateResponse($userMessage, $history);
+        $datasetContext = $this->datasetContextService->buildContext(30, $userMessage, 25);
+        $aiResponse = $this->ollamaService->generateResponse($userMessage, $history, $datasetContext);
 
         ChatMessage::create([
             'conversation_id' => $conversation->id,
