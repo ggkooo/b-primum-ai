@@ -20,7 +20,7 @@ class DatasetContextService
         $fromDatabase = $this->buildContextFromDatabase($maxRecordsPerDataset, $query, $topK);
 
         if ($fromDatabase !== '') {
-            return $fromDatabase;
+            return $this->truncateContext($fromDatabase);
         }
 
         $datasets = Dataset::whereNotNull('parsed_path')->get();
@@ -48,7 +48,7 @@ class DatasetContextService
             }
         }
 
-        return $aggregatedContext;
+        return $this->truncateContext($aggregatedContext);
     }
 
     private function buildContextFromDatabase(int $maxRecordsPerDataset, ?string $query, int $topK): string
@@ -68,5 +68,17 @@ class DatasetContextService
                 return '[' . ($index + 1) . '][dataset:' . $datasetId . '][record:' . $recordIndex . '] ' . $description;
             })
             ->implode("\n");
+    }
+
+    private function truncateContext(string $context): string
+    {
+        $context = trim($context);
+        $maxChars = (int) config('services.ollama.chat_context_max_chars', 3500);
+
+        if ($context === '' || $maxChars <= 0 || mb_strlen($context) <= $maxChars) {
+            return $context;
+        }
+
+        return rtrim(mb_substr($context, 0, $maxChars - 3)) . '...';
     }
 }
