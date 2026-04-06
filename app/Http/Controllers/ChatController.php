@@ -27,6 +27,11 @@ class ChatController extends Controller
             return $this->success([
                 'conversation_id' => $result['conversation_id'],
                 'response' => $result['response'],
+                'stage' => $result['stage'] ?? 'anamnesis',
+                'summary' => $result['summary'] ?? '',
+                'missing_information' => $result['missing_information'] ?? [],
+                'follow_up_questions' => $result['follow_up_questions'] ?? [],
+                'diagnoses' => $result['diagnoses'] ?? [],
             ]);
         } catch (AiProviderException $e) {
             return $this->error($e->getMessage(), $e->httpStatus());
