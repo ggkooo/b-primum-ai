@@ -16,12 +16,14 @@ class DatasetControllerTest extends TestCase
     public function test_upload_endpoint_delegates_to_dataset_service(): void
     {
         $serviceMock = Mockery::mock(DatasetService::class);
-        $serviceMock->shouldReceive('uploadAndQueueParse')
+        $serviceMock->shouldReceive('uploadAndParse')
             ->once()
             ->andReturn(new Dataset([
                 'id' => 7,
                 'original_filename' => 'dataset.csv',
                 'storage_path' => 'datasets/fake.csv',
+                'parsed_path' => 'parsed/fake.json',
+                'metadata' => ['total_records' => 1],
             ]));
 
         $this->app->instance(DatasetService::class, $serviceMock);
@@ -32,7 +34,7 @@ class DatasetControllerTest extends TestCase
             'X-API-KEY' => env('APP_API_KEY'),
         ]);
 
-        $response->assertStatus(201)
+        $response->assertStatus(200)
             ->assertJsonPath('status', 'success')
             ->assertJsonPath('data.filename', 'dataset.csv');
     }

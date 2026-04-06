@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Dataset;
+use App\Models\DatasetRecord;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -12,11 +13,17 @@ class DatasetParsingTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        config(['services.ollama.generate_embeddings' => false]);
+    }
+
     public function test_can_upload_and_parse_dataset(): void
     {
         Storage::fake('local');
 
-        // 1. Upload
         $csvContent = "symptom1,symptom2,diagnosis\nyes,no,flu\nno,yes,cold";
         $file = UploadedFile::fake()->createWithContent('test_dataset.csv', $csvContent);
 
@@ -26,31 +33,26 @@ class DatasetParsingTest extends TestCase
             'X-API-KEY' => env('APP_API_KEY'),
         ]);
 
-        $response->assertStatus(201);
-        $datasetId = $response->json('data.id');
-
-        // 2. Parse via API
-        $parseResponse = $this->postJson("/api/datasets/{$datasetId}/parse", [], [
-            'X-API-KEY' => env('APP_API_KEY'),
-        ]);
-
-        $parseResponse->assertStatus(200)
+        $response->assertStatus(200)
             ->assertJson([
                 'status' => 'success',
-                'message' => 'Dataset parsed successfully',
+                'message' => 'Dataset uploaded and parsed successfully',
             ]);
+
+        $datasetId = $response->json('data.id');
 
         $dataset = Dataset::find($datasetId);
         $this->assertNotNull($dataset->parsed_path);
         
         $parsedContent = json_decode(Storage::get($dataset->parsed_path), true);
         
-        // 3. Verify semantic structure
         $this->assertCount(2, $parsedContent['records']);
         $this->assertEquals("test_dataset.csv", $parsedContent['metadata']['source']);
         $this->assertStringContainsString("This record describes an instance where", $parsedContent['records'][0]['semantic_description']);
         $this->assertStringContainsString("symptom1", $parsedContent['records'][0]['semantic_description']);
         $this->assertStringContainsString("flu", $parsedContent['records'][0]['semantic_description']);
+
+        $this->assertSame(2, DatasetRecord::where('dataset_id', $datasetId)->count());
     }
 
     public function test_can_parse_via_artisan_command(): void

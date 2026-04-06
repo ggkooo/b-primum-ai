@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Jobs\ParseDatasetJob;
 use App\Models\Dataset;
 use Illuminate\Http\UploadedFile;
 
@@ -12,7 +11,7 @@ class DatasetService
     {
     }
 
-    public function uploadAndQueueParse(UploadedFile $file): Dataset
+    public function uploadAndParse(UploadedFile $file): ?Dataset
     {
         $path = $file->store('datasets');
 
@@ -21,8 +20,11 @@ class DatasetService
             'storage_path' => $path,
         ]);
 
-        ParseDatasetJob::dispatch($dataset);
+        if (!$this->parserService->parse($dataset)) {
+            return null;
+        }
 
+        $dataset->refresh();
         return $dataset;
     }
 

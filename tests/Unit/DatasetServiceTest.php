@@ -2,13 +2,11 @@
 
 namespace Tests\Unit;
 
-use App\Jobs\ParseDatasetJob;
 use App\Models\Dataset;
 use App\Services\DatasetParserService;
 use App\Services\DatasetService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Mockery;
 use Tests\TestCase;
@@ -17,19 +15,19 @@ class DatasetServiceTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_upload_and_queue_parse_dispatches_job(): void
+    public function test_upload_and_parse_persists_dataset(): void
     {
         Storage::fake('local');
-        Queue::fake();
 
         $service = new DatasetService(new DatasetParserService());
         $file = UploadedFile::fake()->createWithContent('file.csv', "a,b\n1,2");
 
-        $dataset = $service->uploadAndQueueParse($file);
+        $dataset = $service->uploadAndParse($file);
 
+        $this->assertNotNull($dataset);
         $this->assertDatabaseHas('datasets', ['id' => $dataset->id]);
         Storage::disk('local')->assertExists($dataset->storage_path);
-        Queue::assertPushed(ParseDatasetJob::class);
+        $this->assertNotNull($dataset->parsed_path);
     }
 
     public function test_parse_delegates_to_parser_service(): void

@@ -88,8 +88,8 @@ class ConversationResolverAndHistoryTest extends TestCase
 
         $this->assertCount(2, $history);
         $this->assertSame('user', $history[0]['role']);
-        $this->assertSame('Pergunta', $history[0]['parts'][0]['text']);
-        $this->assertSame('model', $history[1]['role']);
-        $this->assertSame('Resposta', $history[1]['parts'][0]['text']);
+        $this->assertSame('Pergunta', $history[0]['content']);
+        $this->assertSame('assistant', $history[1]['role']);
+        $this->assertSame('Resposta', $history[1]['content']);
     }
 }

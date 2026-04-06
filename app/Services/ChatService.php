@@ -8,17 +8,22 @@ use App\Models\User;
 class ChatService
 {
     public function __construct(
-        private readonly GeminiService $geminiService,
-        private readonly DatasetContextService $datasetContextService,
+        private readonly ClinicalWorkflowService $clinicalWorkflowService,
         private readonly ConversationResolverService $conversationResolverService,
         private readonly ChatHistoryBuilderService $chatHistoryBuilderService,
     ) {
     }
 
     /**
-     * Process a user message and return conversation metadata.
-     *
-     * @return array{conversation_id:string,response:string|null}
+     * @return array{
+     *     conversation_id:string,
+     *     response:string,
+     *     stage:string,
+     *     summary:string,
+     *     missing_information:array<int, string>,
+     *     follow_up_questions:array<int, string>,
+     *     diagnoses:array<int, array{hypothesis:string,certainty:string,rationale:string,supporting_evidence:array<int, string>,warning_signs:array<int, string>,next_steps:array<int, string>}>
+     * }
      */
     public function handleMessage(User $user, string $userMessage, ?string $conversationId): array
     {
@@ -30,22 +35,25 @@ class ChatService
             'content' => $userMessage,
         ]);
 
-        $history = $this->chatHistoryBuilderService->buildForConversation($conversation);
+        $conversation->update(['last_message_at' => now()]);
 
-        $context = $this->datasetContextService->buildContext();
-        $aiResponse = $this->geminiService->generateResponse($userMessage, $history, $context);
+        $history = $this->chatHistoryBuilderService->buildForConversation($conversation, 1);
+        $clinicalResponse = $this->clinicalWorkflowService->generateResponse($conversation, $userMessage, $history);
 
         ChatMessage::create([
             'conversation_id' => $conversation->id,
             'role' => 'model',
-            'content' => $aiResponse,
+            'content' => $clinicalResponse['response'],
         ]);
-
-        $conversation->update(['last_message_at' => now()]);
 
         return [
             'conversation_id' => $conversation->id,
-            'response' => $aiResponse,
+            'response' => $clinicalResponse['response'],
+            'stage' => $clinicalResponse['stage'],
+            'summary' => $clinicalResponse['summary'],
+            'missing_information' => $clinicalResponse['missing_information'],
+            'follow_up_questions' => $clinicalResponse['follow_up_questions'],
+            'diagnoses' => $clinicalResponse['diagnoses'],
         ];
     }
 }

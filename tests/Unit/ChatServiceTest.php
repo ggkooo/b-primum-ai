@@ -6,9 +6,8 @@ use App\Models\Conversation;
 use App\Models\User;
 use App\Services\ChatHistoryBuilderService;
 use App\Services\ChatService;
+use App\Services\ClinicalWorkflowService;
 use App\Services\ConversationResolverService;
-use App\Services\DatasetContextService;
-use App\Services\GeminiService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Mockery;
 use Tests\TestCase;
@@ -24,10 +23,10 @@ class ChatServiceTest extends TestCase
             'user_id' => $user->id,
             'title' => 'Start',
             'last_message_at' => now()->subMinute(),
+            'clinical_stage' => 'anamnesis',
         ]);
 
-        $geminiMock = Mockery::mock(GeminiService::class);
-        $datasetContextMock = Mockery::mock(DatasetContextService::class);
+        $workflowMock = Mockery::mock(ClinicalWorkflowService::class);
         $resolverMock = Mockery::mock(ConversationResolverService::class);
         $historyBuilderMock = Mockery::mock(ChatHistoryBuilderService::class);
 
@@ -38,22 +37,40 @@ class ChatServiceTest extends TestCase
 
         $historyBuilderMock->shouldReceive('buildForConversation')
             ->once()
-            ->with($conversation)
+            ->with($conversation, 1)
             ->andReturn([
-                ['role' => 'user', 'parts' => [['text' => 'Teste de chat']]],
+                ['role' => 'assistant', 'content' => 'Como posso ajudar?'],
             ]);
 
-        $datasetContextMock->shouldReceive('buildContext')->once()->andReturn('Contexto');
-        $geminiMock->shouldReceive('generateResponse')
+        $workflowMock->shouldReceive('generateResponse')
             ->once()
-            ->with('Teste de chat', Mockery::type('array'), 'Contexto')
-            ->andReturn('Resposta IA');
+            ->with($conversation, 'Teste de chat', Mockery::type('array'))
+            ->andReturn([
+                'response' => 'Resposta IA',
+                'stage' => 'diagnostic_refinement',
+                'summary' => 'Resumo do caso',
+                'missing_information' => ['temperatura'],
+                'follow_up_questions' => ['Ha febre?'],
+                'diagnoses' => [
+                    [
+                        'hypothesis' => 'Gripe',
+                        'certainty' => 'media',
+                        'rationale' => 'Compativel com sintomas inespecificos.',
+                        'supporting_evidence' => ['mal-estar'],
+                        'warning_signs' => ['dispneia'],
+                        'next_steps' => ['hidratar'],
+                    ],
+                ],
+            ]);
 
-        $service = new ChatService($geminiMock, $datasetContextMock, $resolverMock, $historyBuilderMock);
+        $service = new ChatService($workflowMock, $resolverMock, $historyBuilderMock);
         $result = $service->handleMessage($user, 'Teste de chat', $conversation->id);
 
         $this->assertSame($conversation->id, $result['conversation_id']);
         $this->assertSame('Resposta IA', $result['response']);
+        $this->assertSame('diagnostic_refinement', $result['stage']);
+        $this->assertSame(['Ha febre?'], $result['follow_up_questions']);
+        $this->assertCount(1, $result['diagnoses']);
 
         $this->assertDatabaseHas('chat_messages', [
             'conversation_id' => $conversation->id,

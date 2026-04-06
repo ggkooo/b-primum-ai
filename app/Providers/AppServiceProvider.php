@@ -19,6 +19,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // Allow long-running AI requests without PHP-side execution cutoff.
+        @set_time_limit(0);
+        ini_set('max_execution_time', '0');
+        ini_set('default_socket_timeout', '0');
     }
 }
