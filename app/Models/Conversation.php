@@ -14,10 +14,13 @@ class Conversation extends Model
         'user_id',
         'title',
         'last_message_at',
+        'clinical_stage',
+        'clinical_snapshot',
     ];
 
     protected $casts = [
         'last_message_at' => 'datetime',
+        'clinical_snapshot' => 'array',
     ];
 
     public function user(): BelongsTo
