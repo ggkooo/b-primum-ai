@@ -307,4 +307,74 @@ class ChatFlowTest extends TestCase
         $this->assertSame('Apendicite', $conversation->clinical_snapshot['diagnoses'][0]['hypothesis']);
         $this->assertSame('localizacao exata da dor', $conversation->clinical_snapshot['missing_information'][0]);
     }
+
+    public function test_chat_breaks_sensitive_data_loop_and_forces_diagnostic_refinement(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $ollamaMock = Mockery::mock(OllamaService::class);
+        $ollamaMock->shouldReceive('generateResponse')
+            ->twice()
+            ->andReturn(
+                json_encode([
+                    'stage' => 'anamnesis',
+                    'summary' => 'dor nos olhos, dor de cabeca, febre e dor abdominal ha 3 dias',
+                    'missing_information' => ['Idade', 'Genero'],
+                    'follow_up_questions' => ['Qual a sua idade?', 'Qual o seu genero?'],
+                    'diagnoses' => [],
+                    'answer' => 'Preciso da sua idade e genero para continuar.',
+                ], JSON_UNESCAPED_UNICODE),
+                json_encode([
+                    'stage' => 'diagnostic_refinement',
+                    'summary' => 'quadro infeccioso sistemico com cefaleia, dor ocular, febre e dor abdominal ha 3 dias',
+                    'missing_information' => ['fotofobia', 'vomitos'],
+                    'follow_up_questions' => ['Voce percebe piora com luz forte?', 'Teve vomitos ou rigidez na nuca?'],
+                    'diagnoses' => [
+                        [
+                            'hypothesis' => 'Dengue',
+                            'certainty' => 'media',
+                            'rationale' => 'Febre, cefaleia e dor ocular sao compativeis com quadro viral sistemico.',
+                            'supporting_evidence' => ['febre', 'dor nos olhos', 'dor de cabeca'],
+                            'warning_signs' => ['sangramentos', 'queda do estado geral'],
+                            'next_steps' => ['hidratar', 'avaliar sinais de alarme'],
+                        ],
+                        [
+                            'hypothesis' => 'Virose inespecifica',
+                            'certainty' => 'media',
+                            'rationale' => 'A combinacao de febre e dor abdominal pode ocorrer em sindromes virais.',
+                            'supporting_evidence' => ['febre', 'dor abdominal'],
+                            'warning_signs' => ['desidratacao'],
+                            'next_steps' => ['observar evolucao'],
+                        ],
+                        [
+                            'hypothesis' => 'Meningite viral ou bacteriana',
+                            'certainty' => 'baixa',
+                            'rationale' => 'Dor ocular e cefaleia com febre exigem exclusao se houver sinais neurologicos.',
+                            'supporting_evidence' => ['cefaleia', 'febre'],
+                            'warning_signs' => ['rigidez de nuca', 'confusao mental'],
+                            'next_steps' => ['avaliacao urgente se houver sinais de alarme'],
+                        ],
+                    ],
+                    'answer' => 'Ja existem dados clinicos suficientes para levantar hipoteses iniciais sem depender de dados pessoais sensiveis.',
+                ], JSON_UNESCAPED_UNICODE),
+            );
+        $this->app->instance(OllamaService::class, $ollamaMock);
+
+        $response = $this->postJson('/api/chat', [
+            'message' => 'Estou com muita dor nos olhos, dor de cabeca, febre e dor de barriga ha 3 dias',
+        ], [
+            'X-API-KEY' => env('APP_API_KEY'),
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.stage', 'diagnostic_refinement')
+            ->assertJsonPath('data.diagnoses.0.hypothesis', 'Dengue');
+
+        $this->assertNotContains('Qual a sua idade?', $response->json('data.follow_up_questions', []));
+        $this->assertNotContains('Qual o seu genero?', $response->json('data.follow_up_questions', []));
+
+        $this->assertStringNotContainsString('idade', mb_strtolower((string) $response->json('data.response')));
+        $this->assertStringNotContainsString('genero', mb_strtolower((string) $response->json('data.response')));
+    }
 }
