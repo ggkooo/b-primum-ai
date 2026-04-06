@@ -46,6 +46,9 @@ return [
         'timeout' => env('OLLAMA_TIMEOUT', 0),
         'connect_timeout' => env('OLLAMA_CONNECT_TIMEOUT', 0),
         'generate_embeddings' => env('OLLAMA_GENERATE_EMBEDDINGS', false),
+        'chat_context_record_limit' => env('OLLAMA_CHAT_CONTEXT_RECORD_LIMIT', 8),
+        'chat_context_top_k' => env('OLLAMA_CHAT_CONTEXT_TOP_K', 8),
+        'chat_context_max_chars' => env('OLLAMA_CHAT_CONTEXT_MAX_CHARS', 3500),
     ],
 
 ];
