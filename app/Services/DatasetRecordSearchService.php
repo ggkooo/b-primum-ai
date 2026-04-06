@@ -7,6 +7,8 @@ use Illuminate\Support\Collection;
 
 class DatasetRecordSearchService
 {
+    private const MINIMUM_TOKEN_LENGTH = 3;
+
     public function __construct(private ?OllamaService $ollamaService = null)
     {
         $this->ollamaService ??= new OllamaService(new OllamaPromptBuilder());
@@ -33,6 +35,14 @@ class DatasetRecordSearchService
 
             if ($rankedRecords->isNotEmpty()) {
                 return $rankedRecords;
+            }
+        }
+
+        if (is_string($query) && trim($query) !== '') {
+            $lexicallyRankedRecords = $this->searchByLexicalSimilarity($records, $query, $topK);
+
+            if ($lexicallyRankedRecords->isNotEmpty()) {
+                return $lexicallyRankedRecords;
             }
         }
 
@@ -71,6 +81,74 @@ class DatasetRecordSearchService
             ->take($topK)
             ->pluck('record')
             ->values();
+    }
+
+    /**
+     * @param Collection<int, DatasetRecord> $records
+     * @return Collection<int, DatasetRecord>
+     */
+    private function searchByLexicalSimilarity(Collection $records, string $query, int $topK): Collection
+    {
+        $queryTerms = $this->extractTerms($query);
+
+        if ($queryTerms === []) {
+            return collect();
+        }
+
+        return $records
+            ->map(function (DatasetRecord $record) use ($queryTerms): array {
+                $description = (string) $record->semantic_description;
+                $score = $this->calculateLexicalScore($description, $queryTerms);
+
+                return [
+                    'record' => $record,
+                    'score' => $score,
+                ];
+            })
+            ->filter(fn (array $item): bool => $item['score'] > 0)
+            ->sortByDesc('score')
+            ->take($topK)
+            ->pluck('record')
+            ->values();
+    }
+
+    /**
+     * @param array<int, string> $queryTerms
+     */
+    private function calculateLexicalScore(string $description, array $queryTerms): int
+    {
+        $normalizedDescription = $this->normalizeText($description);
+        $score = 0;
+
+        foreach ($queryTerms as $term) {
+            if (str_contains($normalizedDescription, $term)) {
+                $score++;
+            }
+        }
+
+        return $score;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function extractTerms(string $text): array
+    {
+        $normalized = $this->normalizeText($text);
+        $parts = preg_split('/\s+/', $normalized) ?: [];
+
+        $terms = array_filter($parts, fn (string $term): bool => mb_strlen($term) >= self::MINIMUM_TOKEN_LENGTH);
+
+        return array_values(array_unique($terms));
+    }
+
+    private function normalizeText(string $text): string
+    {
+        $normalized = mb_strtolower($text);
+        $normalized = preg_replace('/[^\pL\pN\s]/u', ' ', $normalized) ?? $normalized;
+        $normalized = preg_replace('/\s+/', ' ', $normalized) ?? $normalized;
+
+        return trim($normalized);
     }
 
     /**
