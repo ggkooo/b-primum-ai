@@ -28,4 +28,13 @@ class ConversationController extends Controller
             'conversation' => $conversation,
         ]);
     }
+
+    public function destroy(Request $request, string $id)
+    {
+        $this->conversationService->deleteForUser($request->user(), $id);
+
+        return $this->success([
+            'deleted' => true,
+        ]);
+    }
 }
