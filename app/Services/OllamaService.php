@@ -37,12 +37,17 @@ class OllamaService
     /**
      * @param array<int, array{role:string,content:string}> $history
      */
-    public function generateResponse(string $prompt, array $history = [], ?string $datasetContext = null): ?string
+    public function generateResponse(
+        string $prompt,
+        array $history = [],
+        ?string $datasetContext = null,
+        ?string $systemInstruction = null,
+    ): ?string
     {
         $messages = [
             [
                 'role' => 'system',
-                'content' => $this->promptBuilder->buildOllamaSystemInstruction(),
+                'content' => $systemInstruction ?? $this->promptBuilder->buildOllamaSystemInstruction(),
             ],
             ...($this->buildDatasetContextMessages($datasetContext)),
             ...$history,
