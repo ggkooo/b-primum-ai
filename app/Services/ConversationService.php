@@ -22,4 +22,10 @@ class ConversationService
             $query->orderBy('created_at', 'asc');
         }])->where('user_id', $user->id)->findOrFail($conversationId);
     }
+
+    public function deleteForUser(User $user, string $conversationId): void
+    {
+        $conversation = Conversation::where('user_id', $user->id)->findOrFail($conversationId);
+        $conversation->delete();
+    }
 }
