@@ -22,5 +22,7 @@ class OllamaPromptBuilderTest extends TestCase
         $this->assertStringContainsString('JSON valido', $prompt);
         $this->assertStringContainsString('dataset_records', $prompt);
         $this->assertStringContainsString('diagnostic_refinement', $prompt);
+        $this->assertStringContainsString('Nunca solicite dados pessoais ou sensiveis', $prompt);
+        $this->assertStringContainsString('Nunca repita perguntas', $prompt);
     }
 }
