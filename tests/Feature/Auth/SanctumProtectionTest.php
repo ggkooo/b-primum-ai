@@ -21,9 +21,11 @@ class SanctumProtectionTest extends TestCase
 
         $listResponse = $this->getJson('/api/conversations', $headers);
         $showResponse = $this->getJson('/api/conversations/1', $headers);
+        $deleteResponse = $this->deleteJson('/api/conversations/1', [], $headers);
 
         $chatResponse->assertStatus(401);
         $listResponse->assertStatus(401);
         $showResponse->assertStatus(401);
+        $deleteResponse->assertStatus(401);
     }
 }
