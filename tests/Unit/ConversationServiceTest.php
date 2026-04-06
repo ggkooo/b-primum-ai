@@ -91,4 +91,39 @@ class ConversationServiceTest extends TestCase
         $this->expectException(ModelNotFoundException::class);
         $service->findForUser($intruder, $conversation->id);
     }
+
+    public function test_delete_for_user_removes_conversation(): void
+    {
+        $service = new ConversationService();
+        $user = User::factory()->create();
+
+        $conversation = Conversation::create([
+            'user_id' => $user->id,
+            'title' => 'Delete me',
+            'last_message_at' => now(),
+        ]);
+
+        $service->deleteForUser($user, $conversation->id);
+
+        $this->assertDatabaseMissing('conversations', [
+            'id' => $conversation->id,
+        ]);
+    }
+
+    public function test_delete_for_user_throws_for_other_users_conversation(): void
+    {
+        $service = new ConversationService();
+        $owner = User::factory()->create();
+        $intruder = User::factory()->create();
+
+        $conversation = Conversation::create([
+            'user_id' => $owner->id,
+            'title' => 'Private delete test',
+            'last_message_at' => now(),
+        ]);
+
+        $this->expectException(ModelNotFoundException::class);
+
+        $service->deleteForUser($intruder, $conversation->id);
+    }
 }
